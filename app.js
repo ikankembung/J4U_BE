@@ -2,7 +2,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const pool = require('./db');
 const bcrypt = require('bcrypt');
-const vercel = require('vercel');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -219,5 +218,4 @@ app.delete('/sellers/:id', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server berjalan di port ${PORT}`);
-  vercel();
 });
