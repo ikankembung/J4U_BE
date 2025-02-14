@@ -2,11 +2,13 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const pool = require('./db');
 const bcrypt = require('bcrypt');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
+app.use(cors());
 
 const validateUserInput = (data) => {
   const { nis, password, email, phone_number, kelas } = data;
@@ -210,6 +212,17 @@ app.delete('/sellers/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM sellers WHERE seller_id = $1', [id]);
     res.json({ message: 'Seller deleted successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+app.get('/menu/seller/:seller_id', async (req, res) => {
+  const { seller_id } = req.params;
+  try {
+    const menuBySeller = await pool.query('SELECT * FROM menu WHERE seller_id = $1', [seller_id]);
+    res.json(menuBySeller.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
