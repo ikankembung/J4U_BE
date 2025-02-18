@@ -168,12 +168,13 @@ app.post('/order_items', async (req, res) => {
   }
 });
 
-app.post('/sellers', async (req, res) => {
-  const { name, email, phone_number } = req.body;
+app.post('/data_sellers', async (req, res) => {
+  const { seller_name, contact_info, address, password } = req.body;
   try {
+    const hashedPassword = await bcrypt.hash(password, 10);
     const newSeller = await pool.query(
-      'INSERT INTO sellers (name, email, phone_number) VALUES ($1, $2, $3) RETURNING *',
-      [name, email, phone_number]
+      'INSERT INTO data_sellers (seller_name, contact_info, address, password) VALUES ($1, $2, $3, $4) RETURNING *',
+      [seller_name, contact_info, address, hashedPassword]
     );
     res.json(newSeller.rows[0]);
   } catch (err) {
@@ -182,24 +183,36 @@ app.post('/sellers', async (req, res) => {
   }
 });
 
-app.get('/sellers', async (req, res) => {
+app.get('/data_sellers', async (req, res) => {
   try {
-    const allSellers = await pool.query('SELECT * FROM sellers');
-    res.json(allSellers.rows);
+    const alldata_sellers = await pool.query('SELECT * FROM data_sellers');
+    res.json(alldata_sellers.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
   }
 });
 
-app.put('/sellers/:id', async (req, res) => {
+app.put('/data_sellers/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, email, phone_number } = req.body;
+  const { seller_name, contact_info, address, password } = req.body;
   try {
-    const updateSeller = await pool.query(
-      'UPDATE sellers SET name = $1, email = $2, phone_number = $3 WHERE seller_id = $4 RETURNING *',
-      [name, email, phone_number, id]
-    );
+    let updateValues = [seller_name, contact_info, address, id];
+    let updateSeller;
+    
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateValues = [seller_name, contact_info, address, hashedPassword, id];
+      updateSeller = await pool.query(
+        'UPDATE data_sellers SET seller_name = $1, contact_info = $2, address = $3, password = $4 WHERE seller_id = $5 RETURNING *',
+        updateValues
+      );
+    } else {
+      updateSeller = await pool.query(
+        'UPDATE data_sellers SET seller_name = $1, contact_info = $2, address = $3 WHERE seller_id = $4 RETURNING *',
+        updateValues
+      );
+    }
     res.json(updateSeller.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -207,10 +220,10 @@ app.put('/sellers/:id', async (req, res) => {
   }
 });
 
-app.delete('/sellers/:id', async (req, res) => {
+app.delete('/data_sellers/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query('DELETE FROM sellers WHERE seller_id = $1', [id]);
+    await pool.query('DELETE FROM data_sellers WHERE seller_id = $1', [id]);
     res.json({ message: 'Seller deleted successfully' });
   } catch (err) {
     console.error(err.message);
@@ -218,11 +231,22 @@ app.delete('/sellers/:id', async (req, res) => {
   }
 });
 
-app.get('/menu/seller/:seller_id', async (req, res) => {
+app.get('/menu/:seller_id', async (req, res) => {
   const { seller_id } = req.params;
   try {
     const menuBySeller = await pool.query('SELECT * FROM menu WHERE seller_id = $1', [seller_id]);
     res.json(menuBySeller.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+}); 
+
+app.get('/menu/filter/:filter_makan', async (req, res) => {
+  const { filter_makan } = req.params;
+  try {
+    const filteredMenu = await pool.query('SELECT * FROM menu WHERE filter_makan = $1', [filter_makan]);
+    res.json(filteredMenu.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
