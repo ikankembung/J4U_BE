@@ -91,11 +91,15 @@ app.delete('/users/:id', async (req, res) => {
 });
 
 app.post('/menu', async (req, res) => {
-  const { name, price, description } = req.body;
+  const { name, price, description, image, filter_makan } = req.body;
+
+  // Konversi price ke number
+  const numericPrice = parseFloat(price.replace(/,/g, ''));
+
   try {
     const newMenu = await pool.query(
-      'INSERT INTO menu (name, price, description) VALUES ($1, $2, $3) RETURNING *',
-      [name, price, description]
+      'INSERT INTO menu (name, price, description, image, filter_makan) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name, numericPrice, description, image, filter_makan]
     );
     res.json(newMenu.rows[0]);
   } catch (err) {
@@ -116,12 +120,29 @@ app.get('/menu', async (req, res) => {
 
 app.put('/menu/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, price, description } = req.body;
+  const { name, price, description, image } = req.body;
+
+  // Konversi price ke integer
+  const integerPrice = parseInt(price, 10);
+
+  // Tambahkan logging untuk memeriksa data yang diterima
+  console.log('Request Body:', req.body);
+
   try {
-    const updateMenu = await pool.query(
-      'UPDATE menu SET name = $1, price = $2, description = $3 WHERE menu_id = $4 RETURNING *',
-      [name, price, description, id]
-    );
+    const updateValues = [name, integerPrice, description];
+    if (image) {
+      updateValues.push(image);
+    }
+    updateValues.push(id);
+
+    const query = `
+      UPDATE menu 
+      SET name = $1, price = $2, description = $3
+      ${image ? ', image = $4' : ''} 
+      WHERE menu_id = $${image ? 5 : 4} RETURNING *;
+    `;
+
+    const updateMenu = await pool.query(query, updateValues);
     res.json(updateMenu.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -225,6 +246,20 @@ app.delete('/data_sellers/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM data_sellers WHERE seller_id = $1', [id]);
     res.json({ message: 'Seller deleted successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+app.get('/data_sellers/:seller_id', async (req, res) => {
+  const { seller_id } = req.params;
+  try {
+    const seller = await pool.query('SELECT * FROM data_sellers WHERE seller_id = $1', [seller_id]);
+    if (seller.rows.length === 0) {
+      return res.status(404).json({ message: 'Seller not found' });
+    }
+    res.json(seller.rows[0]);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
