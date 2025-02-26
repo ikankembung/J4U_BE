@@ -91,15 +91,15 @@ app.delete('/users/:id', async (req, res) => {
 });
 
 app.post('/menu', async (req, res) => {
-  const { name, price, description, image, filter_makan } = req.body;
+  const { seller_id, name, price, description, image, filter_makan } = req.body;
 
-  // Konversi price ke number
-  const numericPrice = parseFloat(price.replace(/,/g, ''));
+  // Pastikan price adalah string sebelum menggunakan replace
+  const numericPrice = parseFloat(String(price).replace(/,/g, ''));
 
   try {
     const newMenu = await pool.query(
-      'INSERT INTO menu (name, price, description, image, filter_makan) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name, numericPrice, description, image, filter_makan]
+      'INSERT INTO menu (seller_id, name, price, description, image, filter_makan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [seller_id, name, numericPrice, description, image, filter_makan]
     );
     res.json(newMenu.rows[0]);
   } catch (err) {
@@ -120,29 +120,19 @@ app.get('/menu', async (req, res) => {
 
 app.put('/menu/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, price, description, image } = req.body;
+  const { name, price, description, image, filter_makan, seller_id } = req.body;
 
-  // Konversi price ke integer
-  const integerPrice = parseInt(price, 10);
-
-  // Tambahkan logging untuk memeriksa data yang diterima
-  console.log('Request Body:', req.body);
+  // Pastikan price adalah string sebelum menggunakan replace
+  const numericPrice = parseFloat(String(price).replace(/,/g, ''));
 
   try {
-    const updateValues = [name, integerPrice, description];
-    if (image) {
-      updateValues.push(image);
+    const updateMenu = await pool.query(
+      'UPDATE menu SET name = $1, price = $2, description = $3, image = $4, filter_makan = $5, seller_id = $6 WHERE menu_id = $7 RETURNING *',
+      [name, numericPrice, description, image, filter_makan, seller_id, id]
+    );
+    if (updateMenu.rows.length === 0) {
+      return res.status(404).json({ message: 'Menu not found' });
     }
-    updateValues.push(id);
-
-    const query = `
-      UPDATE menu 
-      SET name = $1, price = $2, description = $3
-      ${image ? ', image = $4' : ''} 
-      WHERE menu_id = $${image ? 5 : 4} RETURNING *;
-    `;
-
-    const updateMenu = await pool.query(query, updateValues);
     res.json(updateMenu.rows[0]);
   } catch (err) {
     console.error(err.message);
